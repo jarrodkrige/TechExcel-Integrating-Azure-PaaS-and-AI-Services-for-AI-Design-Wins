@@ -12,7 +12,6 @@ from azure.cosmos import CosmosClient
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 import openai
 
-
 st.set_page_config(layout="wide")
 
 @st.cache_data
@@ -28,7 +27,7 @@ def create_transcription_request(audio_file, speech_recognition_language="en-US"
 
     # Create an instance of a speech config with specified subscription key and service region.
     speech_config = speechsdk.SpeechConfig(subscription=speech_key, region=speech_region)
-    speech_config.speech_recognition_language=speech_recognition_language
+    speech_config.speech_recognition_language = speech_recognition_language
 
     # Prepare audio settings for the wave stream
     channels = 1
@@ -51,13 +50,27 @@ def create_transcription_request(audio_file, speech_recognition_language="en-US"
     def stop_cb(evt):
         print(f'CLOSING on {evt}')
         nonlocal done
-        done= True
+        done = True
 
-    # TODO: Subscribe to the events fired by the conversation transcriber
-    # TODO: stop continuous transcription on either session stopped or canceled events
+    # Subscribe to the events fired by the conversation transcriber
+    transcriber.transcribed.connect(handle_final_result)
+    transcriber.session_started.connect(lambda evt: print(f'SESSION STARTED: {evt}'))
+    transcriber.session_stopped.connect(lambda evt: print(f'SESSION STOPPED {evt}'))
+    transcriber.canceled.connect(lambda evt: print(f'CANCELED {evt}'))
+    # stop continuous transcription on either session stopped or canceled events
+    transcriber.session_stopped.connect(stop_cb)
+    transcriber.canceled.connect(stop_cb)
 
-    # TODO: remove this placeholder code and perform the actual transcription
-    all_results = ['This is a test.', 'Fill in with real transcription.']
+    transcriber.start_transcribing_async()
+
+    # Read the whole wave files at once and stream it to sdk
+    _, wav_data = wavfile.read(audio_file)
+    stream.write(wav_data.tobytes())
+    stream.close()
+    while not done:
+        time.sleep(.5)
+
+    transcriber.stop_transcribing_async()
 
     return all_results
 
@@ -75,7 +88,7 @@ def make_azure_openai_chat_request(system, call_contents):
     client = openai.AzureOpenAI(
         azure_ad_token_provider=token_provider,
         api_version="2024-06-01",
-        azure_endpoint = aoai_endpoint
+        azure_endpoint=aoai_endpoint
     )
     # Create and return a new chat completion request
     return client.chat.completions.create(
@@ -90,7 +103,32 @@ def make_azure_openai_chat_request(system, call_contents):
 def is_call_in_compliance(call_contents, include_recording_message, is_relevant_to_topic):
     """Analyze a call for relevance and compliance."""
 
-    return "This is a placeholder result. Fill in with real compliance analysis."
+    joined_call_contents = ' '.join(call_contents)
+    if include_recording_message:
+        include_recording_message_text = "2. Was the caller aware that the call was being recorded?"
+    else:
+        include_recording_message_text = ""
+
+    if is_relevant_to_topic:
+        is_relevant_to_topic_text = "3. Was the call relevant to the hotel and resort industry?"
+    else:
+        is_relevant_to_topic_text = ""
+
+    system = f"""
+        You are an automated analysis system for Contoso Suites.
+        Contoso Suites is a luxury hotel and resort chain with locations
+        in a variety of Caribbean nations and territories.
+
+        You are analyzing a call for relevance and compliance.
+
+        You will only answer the following questions based on the call contents:
+        1. Was there vulgarity on the call?
+        {include_recording_message_text}
+        {is_relevant_to_topic_text}
+    """
+
+    response = make_azure_openai_chat_request(system, joined_call_contents)
+    return response.choices[0].message.content
 
 @st.cache_data
 def generate_extractive_summary(call_contents):
@@ -153,11 +191,11 @@ def make_azure_openai_embedding_request(text):
 def normalize_text(s):
     """Normalize text for tokenization."""
 
-    s = re.sub(r'\s+',  ' ', s).strip()
-    s = re.sub(r". ,","",s)
+    s = re.sub(r'\s+', ' ', s).strip()
+    s = re.sub(r". ,", "", s)
     # remove all instances of multiple spaces
-    s = s.replace("..",".")
-    s = s.replace(". .",".")
+    s = s.replace("..", ".")
+    s = s.replace(". .", ".")
     s = s.replace("\n", "")
     s = s.strip()
 

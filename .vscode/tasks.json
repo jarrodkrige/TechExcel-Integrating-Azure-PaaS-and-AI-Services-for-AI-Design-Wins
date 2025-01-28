@@ -11,8 +11,12 @@
 		],
 		"type": "process",
 		"problemMatcher": "$msCompile",
+		"group": "build",
+		"presentation": {
+		  "reveal": "silent"
+		},
 		"options": {
-		  "cwd": "${workspaceFolder}/src\\ContosoSuitesVectorizationFunction"
+		  "cwd": "${workspaceFolder}/src/ContosoSuitesVectorizationFunction"
 		}
 	  },
 	  {
@@ -31,7 +35,7 @@
 		},
 		"problemMatcher": "$msCompile",
 		"options": {
-		  "cwd": "${workspaceFolder}/src\\ContosoSuitesVectorizationFunction"
+		  "cwd": "${workspaceFolder}/src/ContosoSuitesVectorizationFunction"
 		}
 	  },
 	  {
@@ -47,11 +51,11 @@
 		"type": "process",
 		"problemMatcher": "$msCompile",
 		"options": {
-		  "cwd": "${workspaceFolder}/src\\ContosoSuitesVectorizationFunction"
+		  "cwd": "${workspaceFolder}/src/ContosoSuitesVectorizationFunction"
 		}
 	  },
 	  {
-		"label": "publish (functions)",
+		"label": "publish",
 		"command": "dotnet",
 		"args": [
 		  "publish",
@@ -61,10 +65,10 @@
 		  "/consoleloggerparameters:NoSummary"
 		],
 		"type": "process",
-		"dependsOn": "clean release (functions)",
+		"dependsOn": "clean (functions)",
 		"problemMatcher": "$msCompile",
 		"options": {
-		  "cwd": "${workspaceFolder}/src\\ContosoSuitesVectorizationFunction"
+		  "cwd": "${workspaceFolder}/src/ContosoSuitesVectorizationFunction"
 		}
 	  },
 	  {
