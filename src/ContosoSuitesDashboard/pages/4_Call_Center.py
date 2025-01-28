@@ -202,47 +202,6 @@ def make_azure_openai_embedding_request(text):
         model=aoai_embedding_deployment_name,
         input=text
     )
-    
-def make_cosmos_db_vector_search_request(query_embedding, max_results=5,minimum_similarity_score=0.5):
-    """Create and return a new vector search request. Key assumptions:
-    - Query embedding is a list of floats based on a search string.
-    - Cosmos DB endpoint, client_id, and database name stored in Streamlit secrets."""
-
-    cosmos_client_id = st.secrets["cosmos"]["client_id"]
-    cosmos_credentials = DefaultAzureCredential(managed_identity_client_id=cosmos_client_id)
-
-    cosmos_endpoint = st.secrets["cosmos"]["endpoint"]
-    cosmos_database_name = st.secrets["cosmos"]["database_name"]
-    cosmos_container_name = "CallTranscripts"
-
-    # Create a CosmosClient
-    client = CosmosClient(url=cosmos_endpoint, credential=cosmos_key)
-    # Load the Cosmos database and container
-    database = client.get_database_client(cosmos_database_name)
-    container = database.get_container_client(cosmos_credentials)
-
-    results = container.query_items(
-        query=f"""
-            SELECT TOP {max_results}
-                c.id,
-                c.call_id,
-                c.call_transcript,
-                c.abstractive_summary,
-                VectorDistance(c.request_vector, @request_vector) AS SimilarityScore
-            FROM c
-            WHERE
-                VectorDistance(c.request_vector, @request_vector) > {minimum_similarity_score}
-            ORDER BY
-                VectorDistance(c.request_vector, @request_vector)
-            """,
-        parameters=[
-            {"name": "@request_vector", "value": query_embedding}
-        ],
-        enable_cross_partition_query=True
-    )
-
-    # Create and return a new vector search request
-    return results
 
 
 
@@ -287,14 +246,8 @@ def save_transcript_to_cosmos_db(transcript_item):
     cosmos_container_name = "CallTranscripts"
 
     # Create a CosmosClient
-    client = CosmosClient(url=cosmos_endpoint, credential=cosmos_credentials)
     # Load the Cosmos database and container
-    database = client.get_database_client(cosmos_database_name)
-    container = database.get_container_client(cosmos_container_name)
-
     # Insert the call transcript
-    container.create_item(body=transcript_item)
-
 
 ####################### HELPER FUNCTIONS FOR MAIN() #######################
 def perform_audio_transcription(uploaded_file):
